@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  username  String   @unique
+  password  String
+
+  bio       String?
+  avatarUrl String?
+  
+  isOnline  Boolean  @default(false)
+  lastSeen  DateTime @default(now())
+
+  isPrivate          Boolean  @default(false)
+  allowDMsFromAnyone Boolean  @default(true)
+  notifyLikes        Boolean  @default(true)
+  notifyComments     Boolean  @default(true)
+  notifyFollows      Boolean  @default(true)
+  notifyMentions     Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  following Follow[] @relation("UserFollowing")
+  followers Follow[] @relation("UserFollowers")
+
+  posts      Post[]
+  likes      PostLike[]
+  bookmarks  PostBookmark[]
+  comments   Comment[]
+  pollVotes  PollVote[]
+  stories    Story[]
+  storyViews StoryViewer[]
+  storyLikes StoryLike[]
+
+  messagesSent         Message[]                 @relation("MessageSender")
+  conversationsJoined  ConversationParticipant[]
+  createdConversations Conversation[]            @relation("GroupCreator")
+
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+  notificationsSent     Notification[] @relation("NotificationActor")
+}
+
+model Conversation {
+  id             String    @id @default(cuid())
+  isGroup        Boolean   @default(false)
+  name           String?
+  groupAvatarUrl String?
+  adminId        String?
+  admin          User?     @relation("GroupCreator", fields: [adminId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  participants   ConversationParticipant[]
+  messages       Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  userId         String
+  conversationId String
+  unreadCount    Int          @default(0)
+  clearedAt      DateTime?    // For soft deleting chat only for oneself
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, conversationId])
+  @@index([conversationId])
+  @@index([userId])
+}
+
+model Message {
+  id             String            @id @default(cuid())
+  content        String
+  mediaUrl       String?
+  mediaType      String?           // "IMAGE" | "VIDEO"
+  status         MessageStatus     @default(SENT)
+  isEdited       Boolean           @default(false)
+  replyToId      String?
+
+  senderId       String
+  conversationId String
+
+  sender         User              @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  replyTo        Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]         @relation("MessageReplies")
+  reactions      MessageReaction[]
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+
+  @@index([conversationId, createdAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  userId    String
+  messageId String
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@index([messageId])
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
+}
+
+model Post {
+  id           String    @id @default(cuid())
+  content      String
+  imageUrl     String?
+  isReel       Boolean   @default(false)
+  scheduledFor DateTime?
+
+  authorId     String
+  author       User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  likes        PostLike[]
+  bookmarks    PostBookmark[]
+  comments     Comment[]
+  poll         Poll?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  notifications Notification[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([scheduledFor])
+  @@index([isReel])
+}
+
+model PostBookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+}
+
+model Poll {
+  id        String       @id @default(cuid())
+  postId    String       @unique
+  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  options   PollOption[]
+
+  createdAt DateTime     @default(now())
+}
+
+model PollOption {
+  id     String     @id @default(cuid())
+  text   String
+  pollId String
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  votes  PollVote[]
+}
+
+model PollVote {
+  id       String     @id @default(cuid())
+  userId   String
+  optionId String
+
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, optionId])
+  @@index([optionId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+
+  userId    String
+  postId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model Story {
+  id        String        @id @default(cuid())
+  mediaUrl  String
+  caption   String?
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewers   StoryViewer[]
+  likes     StoryLike[]
+
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model StoryViewer {
+  id       String   @id @default(cuid())
+  storyId  String
+  userId   String
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+  @@index([userId])
+}
+
+model StoryLike {
+  id       String   @id @default(cuid())
+  storyId  String
+  userId   String
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+  @@index([userId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  message     String
+  isRead      Boolean          @default(false)
+
+  recipientId String
+  actorId     String
+  postId      String?
+
+  createdAt   DateTime         @default(now())
+
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       User             @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  post        Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, createdAt])
+  @@index([recipientId, isRead])
+}
+
+enum NotificationType {
+  FOLLOW
+  LIKE
+  COMMENT
+  MENTION
+  STORY_LIKE
+  REEL_LIKE
+}

@@ -1,0 +1,24 @@
+# AI-generated skill/reference folders
+**/.agents/
+**/.claude/
+**/.windsurf/
+
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+**/.next/
+
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
