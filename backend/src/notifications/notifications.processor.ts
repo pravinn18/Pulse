@@ -2,7 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsGateway } from './notifications.gateway';
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '../generated/prisma/enums';
 
 interface NotificationJobData {
   type: NotificationType;

@@ -17,6 +17,13 @@ export type User = {
   username: string;
   avatarUrl?: string | null;
   bio?: string | null;
+
+  isPrivate?: boolean;
+  allowDMsFromAnyone?: boolean;
+
+  notifyLikes?: boolean;
+  notifyComments?: boolean;
+  notifyFollows?: boolean;
 };
 
 type AuthContextType = {
@@ -25,6 +32,7 @@ type AuthContextType = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -166,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login,
         logout,
+        setUser,
       }}
     >
       {children}
