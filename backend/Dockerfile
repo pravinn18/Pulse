@@ -8,12 +8,10 @@ COPY prisma.config.ts ./
 
 RUN npm ci
 
-RUN npx prisma generate
-
 COPY . .
 
+RUN npx prisma generate
 RUN npm run build
-
 
 FROM node:22-alpine AS runner
 
@@ -27,10 +25,11 @@ COPY prisma.config.ts ./
 
 RUN npm ci --omit=dev
 
+COPY --from=builder /app/src/generated ./src/generated
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "npx prisma db push && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/src/main.js"]
