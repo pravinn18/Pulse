@@ -23,4 +23,4 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "npx prisma db push && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
